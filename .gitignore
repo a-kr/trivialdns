@@ -1,2 +1,3 @@
 trivialdns
 .depends
+deploy.sh
