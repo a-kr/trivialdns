@@ -17,7 +17,7 @@ mkdir -p $FULLNAME/etc/trivialdns
 echo "8.8.8.8" > $FULLNAME/etc/trivialdns/nameservers
 echo "8.8.4.4" >> $FULLNAME/etc/trivialdns/nameservers
 echo "example.com 1.2.3.4" > $FULLNAME/etc/trivialdns/hosts
-echo "redirect.example.com redirecttarget.com" >> $FULLNAME/etc/trivialdns/hosts
+echo "redirect.example.com target.com" >> $FULLNAME/etc/trivialdns/hosts
 
 mkdir $FULLNAME/DEBIAN
 
