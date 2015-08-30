@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	runtime_debug "runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -32,6 +33,13 @@ var (
 func debug(fmt string, args ...interface{}) {
 	if (*debugMode) {
 		log.Printf(fmt, args...)
+	}
+}
+
+func panicCatcher() {
+	if r := recover(); r != nil {
+		runtime_debug.PrintStack()
+		log.Printf("PANIC: %s", r)
 	}
 }
 
@@ -76,13 +84,22 @@ func (self *TrivialDnsServer) GetStats() []StatTuple {
 
 func (self *TrivialDnsServer) refuse(w dns.ResponseWriter, req *dns.Msg) {
 	self.Count("refusals")
+	self.refuseWithCode(w, req, dns.RcodeRefused)
+}
+
+func (self *TrivialDnsServer) refuseOnPanic(w dns.ResponseWriter, req *dns.Msg) {
+	self.Count("panic_refusals")
+	self.refuseWithCode(w, req, dns.RcodeServerFailure)
+}
+
+func (self *TrivialDnsServer) refuseWithCode(w dns.ResponseWriter, req *dns.Msg, code int) {
 	m := new(dns.Msg)
 	for _, r := range req.Extra {
 		if r.Header().Rrtype == dns.TypeOPT {
 			m.SetEdns0(4096, r.(*dns.OPT).Do())
 		}
 	}
-	m.SetRcode(req, dns.RcodeRefused)
+	m.SetRcode(req, code)
 	w.WriteMsg(m)
 }
 
@@ -136,6 +153,9 @@ func (self *TrivialDnsServer) tryAnswer(w dns.ResponseWriter, r *dns.Msg) bool {
 		return false
 	}
 	name := strings.TrimSuffix(q.Name, ".")
+	if name == "panic.com" {
+		panic("panic on request for panic.com")
+	}
 	value, ok := self.Database[name]
 	if !ok {
 		debug("%s: %s not found in local database", w.RemoteAddr(), name)
@@ -209,6 +229,14 @@ func (self *TrivialDnsServer) exchangeWithUpstream(r *dns.Msg) (*dns.Msg, time.D
 }
 
 func (self *TrivialDnsServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
+	defer func() {
+		if err := recover(); err != nil {
+			runtime_debug.PrintStack()
+			log.Printf("PANIC: %s", err)
+			self.refuseOnPanic(w, r)
+		}
+	}()
+
 	self.Count("requests")
 	if self.tryAnswer(w, r) {
 		return
@@ -275,6 +303,7 @@ func readDatabaseFromConfig() map[string]string {
 }
 
 func (self *TrivialDnsServer) WebIndexPage(w http.ResponseWriter, r *http.Request) {
+	defer panicCatcher()
 	fmt.Fprintf(w, "<!DOCTYPE html>\n")
 	fmt.Fprintf(w, "<html>\n")
 	fmt.Fprintf(w, "<head>\n")
@@ -307,6 +336,7 @@ func (self *TrivialDnsServer) WebIndexPage(w http.ResponseWriter, r *http.Reques
 }
 
 func (self *TrivialDnsServer) WebSaveHosts(w http.ResponseWriter, r *http.Request) {
+	defer panicCatcher()
 	if r.Method != "POST" {
 		http.Error(w, "Expected POST query", 400)
 		return
