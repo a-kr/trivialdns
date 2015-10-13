@@ -159,7 +159,23 @@ func (self *TrivialDnsServer) tryAnswer(w dns.ResponseWriter, r *dns.Msg) bool {
 	value, ok := self.Database[name]
 	if !ok {
 		debug("%s: %s not found in local database", w.RemoteAddr(), name)
-		return false
+                parts := strings.Split(name,".")
+                b_found := false
+                for len(parts)>=3 {
+                    parts[0]="*"
+                    wildcard_name := strings.Join(parts,".")
+                    value, ok = self.Database[wildcard_name]
+                    if !ok {
+                        parts=parts[1:]
+                        continue
+                    }else {
+                        b_found = true
+                        break
+                    }
+                }
+                if !b_found {
+                    return false
+                }
 	}
 	if looksLikeDomainName(value) {
 		debug("%s: %s found in database -> redirect to %s", w.RemoteAddr(), name, value)
