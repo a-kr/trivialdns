@@ -20,18 +20,18 @@ import (
 )
 
 const (
-	CommonTimeout = 3 * time.Second
-	HostsConfig = "/etc/trivialdns/hosts"
+	CommonTimeout     = 3 * time.Second
+	HostsConfig       = "/etc/trivialdns/hosts"
 	NameserversConfig = "/etc/trivialdns/nameservers"
 )
 
 var (
-	debugMode = flag.Bool("debug", false, "print debug messages")
+	debugMode     = flag.Bool("debug", false, "print debug messages")
 	webListenAddr = flag.String("web", ":8053", "setup web interface on this port")
 )
 
 func debug(fmt string, args ...interface{}) {
-	if (*debugMode) {
+	if *debugMode {
 		log.Printf(fmt, args...)
 	}
 }
@@ -52,7 +52,7 @@ type TrivialDnsServer struct {
 	Servers  []string
 	Database map[string]string
 
-	stats map[string]int
+	stats     map[string]int
 	statsLock sync.Mutex
 }
 
@@ -63,7 +63,7 @@ func (self *TrivialDnsServer) Count(statname string) {
 }
 
 type StatTuple struct {
-	Key string
+	Key   string
 	Value int
 }
 
@@ -159,23 +159,23 @@ func (self *TrivialDnsServer) tryAnswer(w dns.ResponseWriter, r *dns.Msg) bool {
 	value, ok := self.Database[name]
 	if !ok {
 		debug("%s: %s not found in local database", w.RemoteAddr(), name)
-                parts := strings.Split(name,".")
-                b_found := false
-                for len(parts)>=3 {
-                    parts[0]="*"
-                    wildcard_name := strings.Join(parts,".")
-                    value, ok = self.Database[wildcard_name]
-                    if !ok {
-                        parts=parts[1:]
-                        continue
-                    }else {
-                        b_found = true
-                        break
-                    }
-                }
-                if !b_found {
-                    return false
-                }
+		parts := strings.Split(name, ".")
+		b_found := false
+		for len(parts) >= 3 {
+			parts[0] = "*"
+			wildcard_name := strings.Join(parts, ".")
+			value, ok = self.Database[wildcard_name]
+			if !ok {
+				parts = parts[1:]
+				continue
+			} else {
+				b_found = true
+				break
+			}
+		}
+		if !b_found {
+			return false
+		}
 	}
 	if looksLikeDomainName(value) {
 		debug("%s: %s found in database -> redirect to %s", w.RemoteAddr(), name, value)
@@ -340,7 +340,6 @@ func (self *TrivialDnsServer) WebIndexPage(w http.ResponseWriter, r *http.Reques
 	fmt.Fprintf(w, "<input type=\"submit\" value=\"Update\">\n")
 	fmt.Fprintf(w, "</form>\n")
 
-
 	fmt.Fprintf(w, "<h2>Stats</h2>\n")
 	fmt.Fprintf(w, "<table>\n")
 	for _, st := range self.GetStats() {
@@ -379,7 +378,7 @@ func main() {
 	tdns := &TrivialDnsServer{
 		Servers:  readUpstreamServersFromConfig(),
 		Database: readDatabaseFromConfig(),
-		stats:	  make(map[string]int),
+		stats:    make(map[string]int),
 	}
 
 	log.Printf("Starting with nameservers %v", tdns.Servers)
