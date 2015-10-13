@@ -39,6 +39,9 @@ This file stores a local DNS database for `trivialdns`. File uses the following 
 # for A-queries about example.com, trivialdns will respond with address 2.4.3.1
 example.com   2.4.3.1
 
+# wildcard entries also work
+*.example.com    1.2.3.4
+
 # for A-queries about foo.com, trivialdns will respond with address of bar.com
 foo.com       bar.com
 # (bar.com is resolved every time foo.com is requested, not just once)
