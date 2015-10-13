@@ -161,7 +161,7 @@ func (self *TrivialDnsServer) tryAnswer(w dns.ResponseWriter, r *dns.Msg) bool {
 		debug("%s: %s not found in local database", w.RemoteAddr(), name)
 		parts := strings.Split(name, ".")
 		b_found := false
-		for len(parts) >= 3 {
+		for len(parts) >= 2 {
 			parts[0] = "*"
 			wildcard_name := strings.Join(parts, ".")
 			value, ok = self.Database[wildcard_name]
