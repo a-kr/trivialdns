@@ -287,7 +287,9 @@ func readUpstreamServersFromConfig() []string {
 	}
 	servers := []string{}
 	for _, line := range lines {
-		line = line + ":53"
+		if !strings.Contains(line, ":") {
+			line = line + ":53"
+		}
 		servers = append(servers, line)
 	}
 	return servers
