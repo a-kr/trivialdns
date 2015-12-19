@@ -1,6 +1,6 @@
 #!/bin/bash -e
 PACKAGE=trivialdns
-VERSION=1.1
+VERSION=1.0
 REVISION=1
 MAINTAINER="Alexey Kryuchkov"
 EMAIL="alexey.kruchkov@gmail.com"
