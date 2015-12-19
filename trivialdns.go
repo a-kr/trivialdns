@@ -216,12 +216,23 @@ func (self *TrivialDnsServer) redirectQuery(w dns.ResponseWriter, r *dns.Msg, ne
 	}
 }
 
+func CompressIfLarge(m *dns.Msg) {
+	bytes, err := m.Pack()
+	if err != nil {
+		return
+	}
+	if len(bytes) > 512 {  // may not fit into UDP packet
+		m.Compress = true // will be compressed in WriteMsg
+	}
+}
+
 func (self *TrivialDnsServer) proxyToUpstream(w dns.ResponseWriter, r *dns.Msg) {
 	self.Count("proxied_requests")
 	if response, _, err := self.exchangeWithUpstream(r); err == nil {
 		if len(response.Answer) == 0 {
 			self.Count("proxied_refusals")
 		}
+		CompressIfLarge(response)
 		w.WriteMsg(response)
 	} else {
 		self.Count("upstream_errors")
