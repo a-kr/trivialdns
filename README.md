@@ -20,7 +20,7 @@ DNS queries for hostnames not found in local database will be proxied to these s
 
 Fetch and compile the code:
 ```
-git clone https://github.com/Babazka/trivialdns
+git clone https://github.com/a-kr/trivialdns
 cd trivialdns
 make
 ```
