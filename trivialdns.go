@@ -43,6 +43,11 @@ func panicCatcher() {
 	}
 }
 
+func looksLikeIPv6(s string) bool {
+	// domain names should have alphabet characters in them
+        return strings.ContainsAny(s, ":")
+}
+
 func looksLikeDomainName(s string) bool {
 	// domain names should have alphabet characters in them
 	return strings.ContainsAny(s, "abcdefghijklmnopqrstuvwxyz")
@@ -50,7 +55,7 @@ func looksLikeDomainName(s string) bool {
 
 type TrivialDnsServer struct {
 	Servers  []string
-	Database map[string]string
+	Database map[string][]string
 
 	stats     map[string]int
 	statsLock sync.Mutex
@@ -177,14 +182,15 @@ func (self *TrivialDnsServer) tryAnswer(w dns.ResponseWriter, r *dns.Msg) bool {
 			return false
 		}
 	}
-	if looksLikeDomainName(value) {
-		debug("%s: %s found in database -> redirect to %s", w.RemoteAddr(), name, value)
-		self.redirectQuery(w, r, value)
+        //simplify the logic, just use the first one to determine the list
+	if looksLikeDomainName(value[0]) {
+		debug("%s: %s found in database -> redirect to %s", w.RemoteAddr(), name, value[0])
+		self.redirectQuery(w, r, value[0])
 		return true
 	}
 
-	debug("%s: %s found in database -> %s", w.RemoteAddr(), name, value)
-	addr := net.ParseIP(value)
+	debug("%s: %s found in database -> %s", w.RemoteAddr(), name, strings.Join(value,","))
+	addr := net.ParseIP(value[0])
 	self.Count("local_responses")
 	self.respondSuccessively(w, r, addr)
 	return true
@@ -253,6 +259,7 @@ func (self *TrivialDnsServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	}()
 
+        log.Printf("INFO: QUERY, remote_addr=%v query=%v\n", w.RemoteAddr(), r.Question[0].Name)
 	self.Count("requests")
 	if self.tryAnswer(w, r) {
 		return
@@ -293,8 +300,8 @@ func readUpstreamServersFromConfig() []string {
 	return servers
 }
 
-func readDatabaseFromConfig() map[string]string {
-	db := make(map[string]string)
+func readDatabaseFromConfig() map[string][]string {
+	db := make(map[string][]string)
 	lines, err := readAllLinesFromFile(HostsConfig)
 	if err != nil {
 		log.Printf("Failed to read %s: %s; starting with empty database", HostsConfig, err)
@@ -313,7 +320,8 @@ func readDatabaseFromConfig() map[string]string {
 			log.Printf("Suspicious line in config, ignoring: %s", sourceLine)
 			continue
 		}
-		db[parts[0]] = parts[1]
+                iplist := strings.Split(parts[1], ",")
+		db[parts[0]] = append(db[parts[0]], iplist...)
 	}
 	return db
 }
