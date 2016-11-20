@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+        "errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -15,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+        "encoding/base64"
 
 	"github.com/miekg/dns"
 )
@@ -328,6 +330,11 @@ func readDatabaseFromConfig() map[string][]string {
 
 func (self *TrivialDnsServer) WebIndexPage(w http.ResponseWriter, r *http.Request) {
 	defer panicCatcher()
+        auth := HttpAuth{"admin","psw"}
+        if ok,err := auth.BasicAuth(w,r); ok != true {
+            log.Printf("WARN: authendicate failed, err=%v",err)
+            return
+        }
 	fmt.Fprintf(w, "<!DOCTYPE html>\n")
 	fmt.Fprintf(w, "<html>\n")
 	fmt.Fprintf(w, "<head>\n")
@@ -360,6 +367,11 @@ func (self *TrivialDnsServer) WebIndexPage(w http.ResponseWriter, r *http.Reques
 
 func (self *TrivialDnsServer) WebSaveHosts(w http.ResponseWriter, r *http.Request) {
 	defer panicCatcher()
+        auth := HttpAuth{"admin","psw"}
+        if ok,err := auth.BasicAuth(w,r); ok != true {
+            log.Printf("WARN: authendicate failed, err=%v",err)
+            return
+        }
 	if r.Method != "POST" {
 		http.Error(w, "Expected POST query", 400)
 		return
@@ -380,6 +392,52 @@ func (self *TrivialDnsServer) WebSaveHosts(w http.ResponseWriter, r *http.Reques
 	http.Redirect(w, r, "/", 302)
 }
 
+type HttpAuth struct{
+    U string
+    P string
+}
+func (self* HttpAuth) rsp_auth(w http.ResponseWriter) {
+    w.Header().Set("WWW-Authenticate", `Basic realm="Dotcoo User Login"`)
+    w.WriteHeader(http.StatusUnauthorized)
+}
+func (self* HttpAuth) BasicAuth(w http.ResponseWriter, r *http.Request) (bool, error){
+    auth := r.Header.Get("Authorization")
+    if auth == "" {
+        self.rsp_auth(w)
+        return false,nil
+    }
+    auths := strings.SplitN(auth, " ", 2)
+    if len(auths) != 2 {
+        self.rsp_auth(w)
+        return false,errors.New("header format errorr. filed not enough")
+    }
+    authMethod := auths[0]
+    authB64 := auths[1]
+    switch authMethod {
+    case "Basic":
+        authstr, err := base64.StdEncoding.DecodeString(authB64)
+        if err != nil {
+            self.rsp_auth(w)
+            return false, fmt.Errorf("encoding error: %v",err)
+        }
+        //fmt.Println(string(authstr))
+        userPwd := strings.SplitN(string(authstr), ":", 2)
+        if len(userPwd) != 2 {
+            self.rsp_auth(w)
+            return false,errors.New("tuple format errorr. User:PWD not enough")
+        }
+        username := userPwd[0]
+        password := userPwd[1]
+        if username != self.U || password != self.P {
+            self.rsp_auth(w)
+            return false,fmt.Errorf("user-psw not match! u=[%s] p=[%s]",username,password)
+        }
+    default:
+        self.rsp_auth(w)
+        return false, errors.New("NOT support auth method")
+    }
+    return true,nil
+}
 func main() {
 	flag.Parse()
 
