@@ -332,7 +332,7 @@ func (self *TrivialDnsServer) WebIndexPage(w http.ResponseWriter, r *http.Reques
 	defer panicCatcher()
         auth := HttpAuth{"admin","psw"}
         if ok,err := auth.BasicAuth(w,r); ok != true {
-            log.Printf("WARN: authendicate failed, err=%v",err)
+            log.Printf("WARN: authenticate failed, err=%v",err)
             return
         }
 	fmt.Fprintf(w, "<!DOCTYPE html>\n")
@@ -369,7 +369,7 @@ func (self *TrivialDnsServer) WebSaveHosts(w http.ResponseWriter, r *http.Reques
 	defer panicCatcher()
         auth := HttpAuth{"admin","psw"}
         if ok,err := auth.BasicAuth(w,r); ok != true {
-            log.Printf("WARN: authendicate failed, err=%v",err)
+            log.Printf("WARN: authenticate failed, err=%v",err)
             return
         }
 	if r.Method != "POST" {
