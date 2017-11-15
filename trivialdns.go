@@ -200,7 +200,7 @@ func (self *TrivialDnsServer) redirectQuery(w dns.ResponseWriter, r *dns.Msg, ne
 	newR := new(dns.Msg)
 	newR.SetQuestion(dns.Fqdn(newName), dns.TypeA)
 
-	if response, _, err := self.exchangeWithUpstream(newR); err == nil {
+	if response, _, err := self.exchangeWithUpstream(newR, false); err == nil {
 		ip := self.getSingleSimpleAnswer(response)
 		if ip == nil {
 			debug("%s redirect to %s yielded no answer", w.RemoteAddr(), newName)
@@ -229,7 +229,7 @@ func CompressIfLarge(m *dns.Msg) {
 
 func (self *TrivialDnsServer) proxyToUpstream(w dns.ResponseWriter, r *dns.Msg) {
 	self.Count("proxied_requests")
-	if response, _, err := self.exchangeWithUpstream(r); err == nil {
+	if response, _, err := self.exchangeWithUpstream(r, false); err == nil {
 		if len(response.Answer) == 0 {
 			self.Count("proxied_refusals")
 		}
@@ -242,9 +242,12 @@ func (self *TrivialDnsServer) proxyToUpstream(w dns.ResponseWriter, r *dns.Msg) 
 	}
 }
 
-func (self *TrivialDnsServer) exchangeWithUpstream(r *dns.Msg) (*dns.Msg, time.Duration, error) {
+func (self *TrivialDnsServer) exchangeWithUpstream(r *dns.Msg, useTcp bool) (*dns.Msg, time.Duration, error) {
 	self.Count("upstream_queries")
 	c := new(dns.Client)
+	if useTcp {
+		c.Net = "tcp"
+	}
 
 	c.ReadTimeout = CommonTimeout
 	c.WriteTimeout = CommonTimeout
@@ -253,6 +256,11 @@ func (self *TrivialDnsServer) exchangeWithUpstream(r *dns.Msg) (*dns.Msg, time.D
 	upstreamServer := self.Servers[i]
 
 	response, rtt, err := c.Exchange(r, upstreamServer)
+
+	if err == dns.ErrTruncated && !useTcp {
+		// try again over TCP
+		return self.exchangeWithUpstream(r, true)
+	}
 	return response, rtt, err
 }
 
