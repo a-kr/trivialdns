@@ -28,6 +28,7 @@ const (
 var (
 	debugMode     = flag.Bool("debug", false, "print debug messages")
 	webListenAddr = flag.String("web", ":8053", "setup web interface on this port")
+	listenAddr    = flag.String("addr", ":53", "UDP and TCP host:port to start DNS service on")
 )
 
 func debug(fmt string, args ...interface{}) {
@@ -397,7 +398,7 @@ func main() {
 	log.Printf("Starting with nameservers %v", tdns.Servers)
 	log.Printf("Starting with database %v", tdns.Database)
 
-	addr := ":53"
+	addr := *listenAddr
 
 	go func() {
 		if err := dns.ListenAndServe(addr, "udp", tdns); err != nil {
