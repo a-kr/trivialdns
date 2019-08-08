@@ -257,7 +257,7 @@ func (self *TrivialDnsServer) exchangeWithUpstream(r *dns.Msg, useTcp bool) (*dn
 
 	response, rtt, err := c.Exchange(r, upstreamServer)
 
-	if err == dns.ErrTruncated && !useTcp {
+	if response.Truncated && !useTcp {
 		// try again over TCP
 		return self.exchangeWithUpstream(r, true)
 	}
