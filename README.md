@@ -7,28 +7,24 @@ Simple DNS proxy server with /etc/hosts-like local database editable via web int
 * Can respond with IP address of _another_ domain (thus enabling something like DNS redirection:
   client asks for foo.com and receives the address of bar.com)
 
+## How to build
+```
+docker build -t trivialdns .
+```
+
 ## How to run
 
 Create a configuration file with IP addresses of upstream DNS servers (at least one address is required):
 ```
-mkdir -p /etc/trivialdns
-echo "8.8.8.8" > /etc/trivialdns/nameservers
-echo "8.8.4.4" >> /etc/trivialdns/nameservers
+mkdir -p /etc/trivialdns && \
+echo "8.8.8.8" > /etc/trivialdns/nameservers && \
+echo "8.8.4.4" >> /etc/trivialdns/nameservers && \
+\
+docker run -d -v /etc/trivialdns:/etc/trivialdns --network=host trivialdns
+
 ```
 
 DNS queries for hostnames not found in local database will be proxied to these servers.
-
-Fetch and compile the code:
-```
-git clone https://github.com/a-kr/trivialdns
-cd trivialdns
-make
-```
-
-Run:
-```
-sudo ./trivialdns
-```
 
 ## /etc/trivialdns/hosts
 
@@ -55,9 +51,3 @@ Web interface is available on port `8053`, a simple page which provides an edito
 `/etc/trivialdns/hosts` file. When changes are submitted, they are applied immediately
 (no need to restart the server).
 
-## Debian Packaging
-
-```
-make pkg
-# package/trivialdns_1.0-1.deb file is produced
-```
