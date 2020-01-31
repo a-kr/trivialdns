@@ -29,6 +29,7 @@ var (
 	debugMode     = flag.Bool("debug", false, "print debug messages")
 	webListenAddr = flag.String("web", ":8053", "setup web interface on this port")
 	listenAddr    = flag.String("addr", ":53", "UDP and TCP host:port to start DNS service on")
+	rejectAaaa    = flag.Bool("aaaa-nxdomain", false, "always answer NxDomain to AAAA queries")
 )
 
 func debug(fmt string, args ...interface{}) {
@@ -148,6 +149,24 @@ func (self *TrivialDnsServer) respondSuccessively(w dns.ResponseWriter, r *dns.M
 	w.WriteMsg(m)
 }
 
+func (self *TrivialDnsServer) rejectAaaaIfNeeded(w dns.ResponseWriter, r *dns.Msg) bool {
+	if !*rejectAaaa {
+		return false
+	}
+	if len(r.Question) != 1 {
+		return false
+	}
+	q := r.Question[0]
+	if q.Qtype == dns.TypeAAAA {
+		debug("rejecting AAAA query %#v", r)
+		m := new(dns.Msg)
+		m.SetRcode(r, dns.RcodeNameError)
+		w.WriteMsg(m)
+		return true
+	}
+	return false
+}
+
 func (self *TrivialDnsServer) tryAnswer(w dns.ResponseWriter, r *dns.Msg) bool {
 	q := self.getSingleSimpleQuestion(r)
 	if q == nil {
@@ -228,6 +247,7 @@ func CompressIfLarge(m *dns.Msg) {
 }
 
 func (self *TrivialDnsServer) proxyToUpstream(w dns.ResponseWriter, r *dns.Msg) {
+	debug("proxying query to upstream: %#v", r)
 	self.Count("proxied_requests")
 	if response, _, err := self.exchangeWithUpstream(r, false); err == nil {
 		if len(response.Answer) == 0 {
@@ -274,6 +294,9 @@ func (self *TrivialDnsServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}()
 
 	self.Count("requests")
+	if self.rejectAaaaIfNeeded(w, r) {
+		return
+	}
 	if self.tryAnswer(w, r) {
 		return
 	}
