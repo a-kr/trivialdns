@@ -3,6 +3,7 @@ trivialdns: trivialdns.go .depends
 
 pkg: trivialdns
 	cd package && ./package.sh
+	cd package && ./package_systemd.sh
 
 
 .depends:
